@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>랜덤 발표자 뽑기 - 수업 도구</title>
+    <!-- Tailwind CSS CDN (디자인 적용용) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .sleek-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+            transition: all 0.25s ease;
+        }
+        .gradient-btn:hover {
+            background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+        }
+
+        .animate-spin-slow {
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 스크롤바 커스텀 */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 antialiased text-slate-900">
+
+    <div class="max-w-7xl mx-auto w-full space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                    <i data-lucide="users" class="w-6 h-6"></i>
+                </div>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">랜덤 발표자 뽑기</h1>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200">수업 도구</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-400">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                <span>새로고침해도 유지됩니다 (localStorage)</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <!-- Left: Input & Controls -->
+            <div class="md:col-span-5">
+                <div class="sleek-card rounded-3xl p-6 flex flex-col h-full space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">학생 이름 입력</h2>
+                        <label class="flex items-center gap-1.5 text-slate-600 cursor-pointer text-xs font-medium">
+                            <input type="checkbox" id="allowDuplicates" class="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5">
+                            <span>중복 허용</span>
+                        </label>
+                    </div>
+
+                    <textarea id="nameInput" placeholder="김민준&#10;이서연&#10;박지후..." class="w-full h-64 p-4 text-slate-800 font-medium text-base bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all resize-none shadow-inner"></textarea>
+                    
+                    <p class="text-[11px] text-slate-400">이름을 여러 줄로 입력하세요. (한 줄에 한 명)</p>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button id="pickBtn" class="gradient-btn py-4 px-4 rounded-2xl font-bold text-white shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 text-lg active:scale-95">
+                            <i data-lucide="dices" class="w-5 h-5"></i>
+                            <span>발표자 뽑기</span>
+                        </button>
+                        <button id="resetAllBtn" class="py-4 px-4 rounded-2xl font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm flex items-center justify-center gap-2 text-lg active:scale-95">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4 text-slate-500"></i>
+                            <span>전체 초기화</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Display & Stats -->
+            <div class="md:col-span-7 space-y-6">
+                <!-- Presenter Stage -->
+                <div id="stage" class="relative overflow-hidden sleek-card rounded-3xl border border-indigo-100 p-10 text-center flex flex-col items-center justify-center min-h-[250px]">
+                    <div class="absolute -top-16 -right-16 w-56 h-56 bg-indigo-100/60 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute -bottom-16 -left-16 w-56 h-56 bg-violet-100/50 rounded-full blur-3xl pointer-events-none"></div>
+                    
+                    <div class="relative z-10 space-y-2">
+                        <div id="stageIcon" class="flex justify-center mb-2">
+                            <i data-lucide="sparkles" class="w-8 h-8 text-indigo-600"></i>
+                        </div>
+                        <p class="text-base font-bold text-indigo-600 tracking-tight">오늘의 발표자!</p>
+                        <div id="presenterDisplay" class="text-5xl md:text-7xl font-black text-indigo-950 tracking-tighter py-4 min-h-[100px] flex items-center justify-center">
+                            <span class="text-slate-300 font-medium text-xl">버튼을 눌러주세요</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="sleek-card rounded-3xl p-6 text-center border border-slate-200/80">
+                        <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mb-2 mx-auto">
+                            <i data-lucide="users" class="w-5 h-5 text-indigo-600"></i>
+                        </div>
+                        <div class="text-sm font-bold text-slate-500">남은 학생 수</div>
+                        <div id="remainingCount" class="text-3xl md:text-4xl font-black text-indigo-600 mt-1">0명</div>
+                    </div>
+                    <div class="sleek-card rounded-3xl p-6 text-center border border-slate-200/80">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-2 mx-auto">
+                            <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600"></i>
+                        </div>
+                        <div class="text-sm font-bold text-slate-500">뽑힌 학생 수</div>
+                        <div id="pickedCount" class="text-3xl md:text-4xl font-black text-emerald-600 mt-1">0명</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Lists -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Remaining List -->
+            <div class="sleek-card rounded-3xl p-6 min-h-[200px]">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                        <i data-lucide="user" class="w-4 h-4 text-indigo-600"></i>
+                    </div>
+                    <span>남은 학생 목록</span>
+                    <span id="remainingBadge" class="text-slate-400 font-semibold text-sm">(0명)</span>
+                </h3>
+                <div id="remainingList" class="flex flex-wrap gap-2 text-sm font-semibold"></div>
+            </div>
+
+            <!-- Picked List -->
+            <div class="sleek-card rounded-3xl p-6 min-h-[200px]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                        </div>
+                        <span>뽑힌 학생 목록</span>
+                        <span id="pickedBadge" class="text-slate-400 font-semibold text-sm">(0명)</span>
+                    </h3>
+                    <button id="clearPickedBtn" class="px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition">비우기</button>
+                </div>
+                <div id="pickedList" class="flex flex-wrap gap-2 text-sm font-semibold"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Section -->
+    <script>
+        // Constants & State
+        const STORAGE_KEY = 'classroom_presenter_data';
+        let state = {
+            inputText: `김민준\n이서연\n박지후\n최예진\n정우진\n한소윤\n이지훈\n조하늘`,
+            pickedNames: [],
+            allowDuplicates: false,
+            currentWinner: null
+        };
+
+        // Sound Engine
+        const soundEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playTick() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600 + Math.random() * 200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+            },
+            playWin() {
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.1 + 0.4);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.1); osc.stop(this.ctx.currentTime + idx * 0.1 + 0.4);
+                });
+            },
+            playReset() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+            }
+        };
+
+        // DOM Elements
+        const elements = {
+            nameInput: document.getElementById('nameInput'),
+            allowDuplicates: document.getElementById('allowDuplicates'),
+            pickBtn: document.getElementById('pickBtn'),
+            resetAllBtn: document.getElementById('resetAllBtn'),
+            clearPickedBtn: document.getElementById('clearPickedBtn'),
+            presenterDisplay: document.getElementById('presenterDisplay'),
+            remainingCount: document.getElementById('remainingCount'),
+            pickedCount: document.getElementById('pickedCount'),
+            remainingBadge: document.getElementById('remainingBadge'),
+            pickedBadge: document.getElementById('pickedBadge'),
+            remainingList: document.getElementById('remainingList'),
+            pickedList: document.getElementById('pickedList'),
+            stageIcon: document.getElementById('stageIcon')
+        };
+
+        // Logic
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                state = { ...state, ...JSON.parse(saved) };
+            }
+            elements.nameInput.value = state.inputText;
+            elements.allowDuplicates.checked = state.allowDuplicates;
+            render();
+        }
+
+        function saveData() {
+            state.inputText = elements.nameInput.value;
+            state.allowDuplicates = elements.allowDuplicates.checked;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function getAllStudents() {
+            return elements.nameInput.value.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+        }
+
+        function getRemainingStudents() {
+            const all = getAllStudents();
+            if (state.allowDuplicates) return all;
+            return all.filter(name => !state.pickedNames.includes(name));
+        }
+
+        function render() {
+            const remaining = getRemainingStudents();
+            const picked = state.pickedNames;
+
+            // Stats Update
+            elements.remainingCount.textContent = `${remaining.length}명`;
+            elements.pickedCount.textContent = `${picked.length}명`;
+            elements.remainingBadge.textContent = `(${remaining.length}명)`;
+            elements.pickedBadge.textContent = `(${picked.length}명)`;
+
+            // List Update
+            elements.remainingList.innerHTML = remaining.length ? remaining.map(name => `<div class="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl">${name}</div>`).join('') : '<p class="text-slate-400">남은 학생이 없습니다.</p>';
+            elements.pickedList.innerHTML = picked.length ? picked.map(name => `<div class="px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl">${name}</div>`).join('') : '<p class="text-slate-400">아직 뽑힌 학생이 없습니다.</p>';
+
+            // Presenter Display (Only if not picking)
+            if (state.currentWinner) {
+                elements.presenterDisplay.innerHTML = `<span class="text-indigo-950">${state.currentWinner}</span>`;
+                elements.stageIcon.innerHTML = '<i data-lucide="party-popper" class="w-8 h-8 text-amber-500 animate-bounce"></i>';
+            } else {
+                elements.presenterDisplay.innerHTML = '<span class="text-slate-300 font-medium text-xl">발표자 뽑기 버튼을 눌러주세요</span>';
+                elements.stageIcon.innerHTML = '<i data-lucide="sparkles" class="w-8 h-8 text-indigo-600"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        let isPicking = false;
+        async function pickPresenter() {
+            if (isPicking) return;
+            const remaining = getRemainingStudents();
+            if (remaining.length === 0) return alert('추첨할 학생이 없습니다!');
+
+            isPicking = true;
+            elements.pickBtn.disabled = true;
+            elements.pickBtn.classList.add('opacity-50');
+
+            // Shuffle Animation
+            const duration = 2000;
+            const interval = 80;
+            const startTime = Date.now();
+
+            const timer = setInterval(() => {
+                const randomName = remaining[Math.floor(Math.random() * remaining.length)];
+                elements.presenterDisplay.innerHTML = `<span class="text-slate-400 scale-90 opacity-70">${randomName}</span>`;
+                soundEngine.playTick();
+                
+                if (Date.now() - startTime >= duration) {
+                    clearInterval(timer);
+                    const winner = remaining[Math.floor(Math.random() * remaining.length)];
+                    state.currentWinner = winner;
+                    state.pickedNames.push(winner);
+                    
+                    isPicking = false;
+                    elements.pickBtn.disabled = false;
+                    elements.pickBtn.classList.remove('opacity-50');
+                    
+                    soundEngine.playWin();
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    
+                    saveData();
+                    render();
+                }
+            }, interval);
+        }
+
+        // Event Listeners
+        elements.pickBtn.addEventListener('click', pickPresenter);
+        elements.resetAllBtn.addEventListener('click', () => {
+            if (confirm('전체 추첨 기록을 초기화하시겠습니까?')) {
+                state.pickedNames = [];
+                state.currentWinner = null;
+                soundEngine.playReset();
+                saveData();
+                render();
+            }
+        });
+        elements.clearPickedBtn.addEventListener('click', () => {
+            state.pickedNames = [];
+            state.currentWinner = null;
+            saveData();
+            render();
+        });
+        elements.nameInput.addEventListener('input', () => { saveData(); render(); });
+        elements.allowDuplicates.addEventListener('change', () => { saveData(); render(); });
+
+        // Init
+        window.addEventListener('load', () => {
+            loadData();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

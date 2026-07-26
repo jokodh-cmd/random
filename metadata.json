@@ -1,0 +1,6 @@
+{
+  "name": "랜덤 발표자 뽑기",
+  "description": "학생 이름을 입력하고 랜덤으로 발표자를 추첨하는 수업 도구 앱",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
